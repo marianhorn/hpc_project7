@@ -106,30 +106,32 @@ PetscErrorCode ComputeRHS(KSP ksp, Vec b, void *ctx) {
 PetscErrorCode ComputeMatrix(KSP ksp, Mat A, Mat P, void *ctx) {
   DM            da;
   DMDALocalInfo info;
-  PetscReal     hx, hy, hx2, hy2;
+  PetscReal     hx, hy, invhx2, invhy2;
   MatStencil    row, col[5];
   PetscInt      i, j;
   PetscScalar   v[5];
 
   PetscFunctionBeginUser;
 
-  //! <DEBUG >Get the MPI rank for debug printing (remove this code for full test)
-  //PetscMPIInt   rank;
-  //PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-  //! <DEBUG >Get the MPI rank for debug printing (remove this code for full test)
-
-  // Retrieve the distributed array, grid information, and global grid dimensions
+  // Retrieve the distributed array and grid information
   PetscCall(KSPGetDM(ksp, &da));
   PetscCall(DMDAGetLocalInfo(da, &info)); // info.mx and info.my include boundary points
-  
-   for (j = info.ys; j < info.ys + info.ym; j++) {
+
+  // Grid spacing and inverse squares
+  hx      = 1.0 / (PetscReal)(info.mx - 1);
+  hy      = 1.0 / (PetscReal)(info.my - 1);
+  invhx2  = 1.0 / (hx * hx);
+  invhy2  = 1.0 / (hy * hy);
+
+  // Loop over the local grid points
+  for (j = info.ys; j < info.ys + info.ym; j++) {
     for (i = info.xs; i < info.xs + info.xm; i++) {
 
       row.i = i;
       row.j = j;
-      row.c = 0;   // component (only 1 dof per node)
+      row.c = 0;   // only 1 dof per node
 
-      // Boundary points: Dirichlet u = 0 ⇒ row is identity
+      // Boundary points: Dirichlet u = 0  -> identity row
       if (i == 0 || i == info.mx - 1 || j == 0 || j == info.my - 1) {
         col[0].i = i;
         col[0].j = j;
@@ -171,7 +173,6 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat A, Mat P, void *ctx) {
         v[4]     = -invhy2;
 
         PetscCall(MatSetValuesStencil(A, 1, &row, 5, col, v, INSERT_VALUES));
-        // (you may also use ADD_VALUES if you prefer, as long as you do not add twice)
       }
     }
   }
@@ -183,17 +184,6 @@ PetscErrorCode ComputeMatrix(KSP ksp, Mat A, Mat P, void *ctx) {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-  //! <DEBUG> Ensure all processes print their debug output (remove this code for full test)
-  //PetscCall(PetscSynchronizedPrintf(PETSC_COMM_WORLD, "==============\n"));
-  //PetscCall(PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT));
-  //! <DEBUG> Ensure all processes print their debug output (remove this code for full test)
-
-  // Assemble the matrix after all values have been set
-  PetscCall(MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
 int main(int argc, char **argv){
   KSP         ksp;
