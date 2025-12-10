@@ -35,9 +35,11 @@ import argparse
 def ComputeRHS(nx, ny, f_value):
     """Compute the right-hand side vector."""
 
-    # TODO Gernate RHS vector
-    # Note .flatten() By default we have "row-major" ordering!
-    return []
+    rhs_2d = np.zeros((ny, nx), dtype=float)
+    rhs_2d[1:-1, 1:-1] = f_value
+    rhs = rhs_2d.flatten()
+
+    return rhs
 
 def ComputeMatrix(nx, ny, dx, dy):
 
@@ -45,9 +47,53 @@ def ComputeMatrix(nx, ny, dx, dy):
     row_indices = []
     col_indices = []
 
-    N = nx * ny    
+    N = nx * ny  
+    inv_dx2 = 1.0 / dx**2
+    inv_dy2 = 1.0 / dy**2
+    center_coeff = 2.0 * inv_dx2 + 2.0 * inv_dy2  
 
-    # TODO: Loop over grid points (i, j) and compute the entries of matrix A as a sparse matrix by populating row_indices, col_indices, and data.
+    for j in range(ny):
+        for i in range(nx):
+            k = j * nx + i  # global index in flattened vector (row-major)
+
+            # Check if (i,j) is a boundary node
+            if i == 0 or i == nx - 1 or j == 0 or j == ny - 1:
+                # Dirichlet boundary condition: u = 0
+                # Implemented as: A[k,k] = 1
+                row_indices.append(k)
+                col_indices.append(k)
+                data.append(1.0)
+            else:
+                # Interior node: apply 5-point stencil
+
+                # Center coefficient
+                row_indices.append(k)
+                col_indices.append(k)
+                data.append(center_coeff)
+
+                # Left neighbor (i-1,j)
+                k_left = j * nx + (i - 1)
+                row_indices.append(k)
+                col_indices.append(k_left)
+                data.append(-inv_dx2)
+
+                # Right neighbor (i+1,j)
+                k_right = j * nx + (i + 1)
+                row_indices.append(k)
+                col_indices.append(k_right)
+                data.append(-inv_dx2)
+
+                # Bottom neighbor (i,j-1)
+                k_bottom = (j - 1) * nx + i
+                row_indices.append(k)
+                col_indices.append(k_bottom)
+                data.append(-inv_dy2)
+
+                # Top neighbor (i,j+1)
+                k_top = (j + 1) * nx + i
+                row_indices.append(k)
+                col_indices.append(k_top)
+                data.append(-inv_dy2)
 
     return csr_matrix((data, (row_indices, col_indices)), shape=(N, N))
 
