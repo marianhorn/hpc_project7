@@ -158,7 +158,7 @@ if __name__ == "__main__":
     if 'sp_cg' in solver_list:
         # Sparse iterative solver (Conjugate Gradient)
         start_cg = time.time()
-        solutions['sp_cg'], _ = cg(laplacian, rhs, tol=1e-6)
+        solutions['sp_cg'], _ = cg(laplacian, rhs, rtol=1e-6)
         end_cg = time.time()
         print(f"{'Conjugate Gradient (sparse) Solver Time:':<40} {end_cg - start_cg:.6f} seconds, "
             f"Norm of Solution: {np.linalg.norm(solutions['sp_cg'], ord=2):.6f}")
